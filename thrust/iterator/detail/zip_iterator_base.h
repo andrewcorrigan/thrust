@@ -293,6 +293,15 @@ namespace zip_iterator_base_ns
 {
 
 
+#if 0   // XXX upon variadic tuple
+template<typename Tuple, size_t... I>
+  struct tuple_of_iterator_references_helper
+{
+  typedef thrust::detail::tuple_of_iterator_references<
+    typename thrust::tuple_element<I,Tuple>::type...
+  > type;
+};
+#else
 template<int i, typename Tuple>
   struct tuple_elements_helper
     : eval_if<
@@ -317,6 +326,7 @@ template<typename Tuple>
   typedef typename tuple_elements_helper<8,Tuple>::type T8;
   typedef typename tuple_elements_helper<9,Tuple>::type T9;
 };
+#endif
 
 
 template<typename IteratorTuple>
@@ -328,6 +338,13 @@ template<typename IteratorTuple>
     iterator_reference
   >::type tuple_of_references;
 
+#if 0   // XXX upon variadic tuple
+  // map thrust::tuple<T...> to tuple_of_iterator_references<T...>
+  typedef typename tuple_of_iterator_references_helper<
+    tuple_of_references,
+    __make_index_sequence<tuple_size<tuple_of_references>::value>
+  >::type type;
+#else
   // get at the individual tuple element types by name
   typedef tuple_elements<tuple_of_references> elements;
 
@@ -344,6 +361,7 @@ template<typename IteratorTuple>
     typename elements::T8,
     typename elements::T9
   > type;
+#endif
 };
 
 
