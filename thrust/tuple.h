@@ -579,6 +579,39 @@ bool operator>(const null_type&, const null_type&);
 /*! \} // utility
  */
 
+// define index sequence in case it is missing  // XXX upon C++14 replace with std:: equivalents
+
+template<size_t... I> struct __index_sequence {};
+
+template<size_t Start, typename Indices, size_t End>
+struct __make_index_sequence_impl;
+
+template<size_t Start, size_t... Indices, size_t End>
+struct __make_index_sequence_impl<
+  Start,
+  __index_sequence<Indices...>,
+  End
+>
+{
+  typedef typename __make_index_sequence_impl<
+    Start + 1,
+    __index_sequence<Indices..., Start>,
+    End
+  >::type type;
+};
+
+template<size_t End, size_t... Indices>
+struct __make_index_sequence_impl<End, __index_sequence<Indices...>, End>
+{
+  typedef __index_sequence<Indices...> type;
+};
+
+template<size_t N>
+using __make_index_sequence = typename __make_index_sequence_impl<0, __index_sequence<>, N>::type;
+
+template<class... T>
+using __index_sequence_for = __make_index_sequence<sizeof...(T)>;
+    
 } // end thrust
 
 #include <thrust/detail/tuple/tuple_io.h>
@@ -598,29 +631,13 @@ namespace thrust
  *  tuples by concanenation
  *
  *  \param t1 The first object to concatenate.
- *  \param t2 The second object to concatenate.
- *  \return A \p tuple object which is a concatenation of \p t0 and \p t1.
+ *  \param ts The other objects to concatenate.
+ *  \return A \p tuple object which is a concatenation of \p t0 and \p ts... .
  */
-template<typename Tuple1, typename Tuple2>
+template<typename Tuple1, typename... Tuples>
 inline __host__ __device__
-typename thrust::detail::tuple_cat_enable_if<Tuple1,Tuple2>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2);
-
-/*! This version of \p tuple_cat creates a new \c tuple object from three
- *  tuples by concanenation
- *
- *  \param t1 The first object to concatenate.
- *  \param t2 The second object to concatenate.
- *  \param t3 The second object to concatenate.
- *  \return A \p tuple object which is a concatenation of \p t0 and \p t1 and \p t2.
- *
- *  \note \p tuple_cat has ten variants, the rest of which are omitted here for
- *           brevity.
- */
-template<typename Tuple1, typename Tuple2, typename Tuple3>
-inline __host__ __device__
-typename thrust::detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3);
+typename thrust::detail::tuple_cat_enable_if<Tuple1,Tuples...>::type
+  tuple_cat(const Tuple1 &t1, const Tuples&... ts);
 
 /*! tuple_manipulator for defining the character that is output before the first element of a tuple
  *
@@ -675,10 +692,10 @@ inline std::basic_istream<CharType, CharTrait>&
  *  \param t The tuple object to insert into \p o.
  *  \return A reference to \p o.
  */
-template<class CharType, class CharTrait, class T0, class T1, class T2, class T3, class T4, class T5, class T6, class T7, class T8, class T9>
+template<class CharType, class CharTrait, class... Ts>
 inline std::basic_ostream<CharType, CharTrait>& 
   operator<<(std::basic_ostream<CharType, CharTrait>& o, 
-             const thrust::tuple<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>& t);
+             const thrust::tuple<Ts...>& t);
 
 /*! Stream extraction operator>> overload for thrust::tuple
  *
@@ -686,10 +703,10 @@ inline std::basic_ostream<CharType, CharTrait>&
  *  \param t The tuple object to extract from \p i.
  *  \return A reference to \p i.
  */
-template<class CharType, class CharTrait, class T0, class T1, class T2, class T3, class T4, class T5, class T6, class T7, class T8, class T9>
+template<class CharType, class CharTrait, class... Ts>
 inline std::basic_istream<CharType, CharTrait>& 
   operator>>(std::basic_istream<CharType, CharTrait>& i,
-             thrust::tuple<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>& t);
+             thrust::tuple<Ts...>& t);
 
 /*! \} // tuple
  */
