@@ -181,7 +181,7 @@ print_helper(CharType d, std::basic_ostream<CharType, CharTrait>& o, const T& t,
 
 template<class CharType, class CharTrait, class... Types, size_t... I>
 inline std::basic_ostream<CharType, CharTrait>&
-print(std::basic_ostream<CharType, CharTrait>& o, const thrust::tuple<Types...>& t, std::index_sequence<I...>)
+print(std::basic_ostream<CharType, CharTrait>& o, const thrust::tuple<Types...>& t, __index_sequence<I...>)
 {
   const CharType d = detail::tuple_detail::format_info::get_manipulator(o, detail::tuple_detail::format_info::delimiter);
 
@@ -227,7 +227,7 @@ operator<<(std::basic_ostream<CharType, CharTrait>& o,
 
   o << l;
 
-  detail::tuple_detail::print(o, t, std::make_index_sequence<thrust::tuple_size<thrust::tuple<Types...>>::value>{});   // XXX std::index_sequence_for<Types...>{} upon variadic tuple
+  detail::tuple_detail::print(o, t, __make_index_sequence<thrust::tuple_size<thrust::tuple<Types...>>::value>{});   // XXX __index_sequence_for<Types...>{} upon variadic tuple
 
   o << r;
 
@@ -286,7 +286,7 @@ read_helper(std::basic_istream<CharType, CharTrait> &is, T& t, Types&... ts)
 
 template<class CharType, class CharTrait, class... Types, size_t... I>
 inline std::basic_istream<CharType, CharTrait>& 
-read(std::basic_istream<CharType, CharTrait> &is, thrust::tuple<Types...>& t, std::index_sequence<I...>)
+read(std::basic_istream<CharType, CharTrait> &is, thrust::tuple<Types...>& t, __index_sequence<I...>)
 {
   if (!is.good()) return is;
   read_helper(is, thrust::get<I>(t)...);
@@ -306,7 +306,7 @@ operator>>(std::basic_istream<CharType, CharTrait>& is, thrust::tuple<Types...>&
 
   detail::tuple_detail::extract_and_check_delimiter(is, detail::tuple_detail::format_info::open);
   
-  detail::tuple_detail::read(is, t, __make_index_sequence<thrust::tuple_size<thrust::tuple<Types...>>::value>{});   // XXX std::index_sequence_for<Types...>{} upon variadic tuple
+  detail::tuple_detail::read(is, t, __make_index_sequence<thrust::tuple_size<thrust::tuple<Types...>>::value>{});   // XXX __index_sequence_for<Types...>{} upon variadic tuple
 
   detail::tuple_detail::extract_and_check_delimiter(is, detail::tuple_detail::format_info::close);
 

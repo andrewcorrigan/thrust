@@ -692,10 +692,10 @@ inline std::basic_istream<CharType, CharTrait>&
  *  \param t The tuple object to insert into \p o.
  *  \return A reference to \p o.
  */
-template<class CharType, class CharTrait, class... Ts>
+template<class CharType, class CharTrait, class... Types>
 inline std::basic_ostream<CharType, CharTrait>& 
   operator<<(std::basic_ostream<CharType, CharTrait>& o, 
-             const thrust::tuple<Ts...>& t);
+             const thrust::tuple<Types...>& t);
 
 /*! Stream extraction operator>> overload for thrust::tuple
  *
@@ -703,10 +703,10 @@ inline std::basic_ostream<CharType, CharTrait>&
  *  \param t The tuple object to extract from \p i.
  *  \return A reference to \p i.
  */
-template<class CharType, class CharTrait, class... Ts>
+template<class CharType, class CharTrait, class... Types>
 inline std::basic_istream<CharType, CharTrait>& 
   operator>>(std::basic_istream<CharType, CharTrait>& i,
-             thrust::tuple<Ts...>& t);
+             thrust::tuple<Types...>& t);
 
 /*! \} // tuple
  */
