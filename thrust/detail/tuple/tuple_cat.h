@@ -168,79 +168,13 @@ typename detail::tuple_cat_enable_if<Tuple1,Tuple2>::type
   return thrust::tuple_cat(ns::tuple_append<head_type>(t1, thrust::get<0>(t2)), ns::tuple_tail(t2));
 }
 
-
-// XXX perhaps there's a smarter way to accumulate
-template<typename Tuple1, typename Tuple2, typename Tuple3>
+template<typename Tuple1, typename... Tuples>
 inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3)
+typename detail::tuple_cat_enable_if<Tuple1, Tuples...>::type
+  tuple_cat(const Tuple1& t1, const Tuples&... ts)
 {
-  return thrust::tuple_cat(t1, thrust::tuple_cat(t2,t3));
+    return thrust::tuple_cat(t1, thrust::tuple_cat(ts...));
 }
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4)
-{
-  return thrust::tuple_cat(t1, t2, thrust::tuple_cat(t3,t4));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5)
-{
-  return thrust::tuple_cat(t1, t2, t3, thrust::tuple_cat(t4,t5));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5, typename Tuple6>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5,Tuple6>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5, const Tuple6 &t6)
-{
-  return thrust::tuple_cat(t1, t2, t3, t4, thrust::tuple_cat(t5,t6));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5, typename Tuple6, typename Tuple7>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5,Tuple6,Tuple7>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5, const Tuple6 &t6, const Tuple7 &t7)
-{
-  return thrust::tuple_cat(t1, t2, t3, t4, t5, thrust::tuple_cat(t6,t7));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5, typename Tuple6, typename Tuple7, typename Tuple8>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5,Tuple6,Tuple7,Tuple8>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5, const Tuple6 &t6, const Tuple7 &t7, const Tuple8 &t8)
-{
-  return thrust::tuple_cat(t1, t2, t3, t4, t5, t6, thrust::tuple_cat(t7,t8));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5, typename Tuple6, typename Tuple7, typename Tuple8, typename Tuple9>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5,Tuple6,Tuple7,Tuple8,Tuple9>::type
-  tuple_cat(const Tuple2 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5, const Tuple6 &t6, const Tuple7 &t7, const Tuple8 &t8, const Tuple9 &t9)
-{
-  return thrust::tuple_cat(t1, t2, t3, t4, t5, t6, t7, thrust::tuple_cat(t8,t9));
-}
-
-
-template<typename Tuple1, typename Tuple2, typename Tuple3, typename Tuple4, typename Tuple5, typename Tuple6, typename Tuple7, typename Tuple8, typename Tuple9, typename Tuple10>
-inline __host__ __device__
-typename detail::tuple_cat_enable_if<Tuple1,Tuple2,Tuple3,Tuple4,Tuple5,Tuple6,Tuple7,Tuple8,Tuple9,Tuple10>::type
-  tuple_cat(const Tuple1 &t1, const Tuple2 &t2, const Tuple3 &t3, const Tuple4 &t4, const Tuple5 &t5, const Tuple6 &t6, const Tuple7 &t7, const Tuple8 &t8, const Tuple9 &t9, const Tuple10 &t10)
-{
-  return thrust::tuple_cat(t1, t2, t3, t4, t5, t6, t7, t8, thrust::tuple_cat(t9,t10));
-}
-
 
 } // end thrust
 
