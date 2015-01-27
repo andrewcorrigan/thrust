@@ -127,17 +127,28 @@ template<class Tuple, class BinaryMetaFun, class StartType>
   struct tuple_meta_accumulate;
 
 template<
-    typename Tuple
-  , class BinaryMetaFun
+    class BinaryMetaFun
   , typename StartType
 >
-  struct tuple_meta_accumulate_impl
+  struct tuple_meta_accumulate<thrust::tuple<>,BinaryMetaFun,StartType>
+{
+   typedef typename thrust::detail::identity_<StartType>::type type;
+};
+
+
+template<
+    class BinaryMetaFun
+  , typename StartType
+  , typename    T
+  , typename... Types
+>
+  struct tuple_meta_accumulate<thrust::tuple<T,Types...>,BinaryMetaFun,StartType>
 {
    typedef typename apply2<
        BinaryMetaFun
-     , typename Tuple::head_type
+     , T
      , typename tuple_meta_accumulate<
-           typename Tuple::tail_type
+           thrust::tuple<Types...>
          , BinaryMetaFun
          , StartType 
        >::type
@@ -145,81 +156,38 @@ template<
 };
 
 
-template<
-    typename Tuple
-  , class BinaryMetaFun
-  , typename StartType
->
-struct tuple_meta_accumulate
-  : thrust::detail::eval_if<
-        thrust::detail::is_same<Tuple, thrust::null_type>::value
-      , thrust::detail::identity_<StartType>
-      , tuple_meta_accumulate_impl<
-            Tuple
-          , BinaryMetaFun
-          , StartType
-        >
-    > // end eval_if
-{
-}; // end tuple_meta_accumulate
-
-
-// transform algorithm for tuples. The template parameter Fun
-// must be a unary functor which is also a unary metafunction
-// class that computes its return type based on its argument
-// type. For example:
-//
-// struct to_ptr
-// {
-//     template <class Arg>
-//     struct apply
-//     {
-//          typedef Arg* type;
-//     }
-//
-//     template <class Arg>
-//     Arg* operator()(Arg x);
-// };
-
-
-
-// for_each algorithm for tuples.
 template<typename Fun>
 inline __host__ __device__
-Fun tuple_for_each(thrust::null_type, Fun f)
+Fun tuple_for_each_helper(Fun f)
 {
   return f;
-} // end tuple_for_each()
+}
 
-
-template<typename Tuple, typename Fun>
+template<typename Fun, typename T, typename... Types>
 inline __host__ __device__
-Fun tuple_for_each(Tuple& t, Fun f)
+Fun tuple_for_each_helper(Fun f, T& t, Types&... ts)
+{
+  f(t);
+  return tuple_for_each_helper(f, ts...);
+};
+
+template<typename Fun, typename... Types, size_t... I>
+inline __host__ __device__
+Fun tuple_for_each(thrust::tuple<Types...>& t, Fun f, thrust::__index_sequence<I...>)
+{
+  return tuple_for_each_helper(f, thrust::get<I>(t)...);
+};
+
+// for_each algorithm for tuples.
+template<typename Fun, typename... Types>
+inline __host__ __device__
+Fun tuple_for_each(thrust::tuple<Types...>& t, Fun f)
 { 
-  f( t.get_head() );
-  return tuple_for_each(t.get_tail(), f);
-} // end tuple_for_each()
+  return tuple_for_each(t, f, thrust::__make_index_sequence<thrust::tuple_size<thrust::tuple<Types...>>::value>{});    // XXX __index_sequence_for<Types...>{} upon variadic tuple
+}
 
 
-// Equality of tuples. NOTE: "==" for tuples currently (7/2003)
-// has problems under some compilers, so I just do my own.
-// No point in bringing in a bunch of #ifdefs here. This is
-// going to go away with the next tuple implementation anyway.
-//
-__host__ __device__
-inline bool tuple_equal(thrust::null_type, thrust::null_type)
-{ return true; }
-
-
-template<typename Tuple1, typename Tuple2>
-__host__ __device__
-bool tuple_equal(Tuple1 const& t1, Tuple2 const& t2)
-{ 
-  return t1.get_head() == t2.get_head() && 
-  tuple_equal(t1.get_tail(), t2.get_tail());
-} // end tuple_equal()
-
-} // end end tuple_impl_specific
+} // end tuple_impl_specific
 
 
 // Metafunction to obtain the type of the tuple whose element types
@@ -293,9 +261,12 @@ namespace zip_iterator_base_ns
 {
 
 
-#if 0   // XXX upon variadic tuple
+#ifdef THRUST_VARIADIC_TUPLE
+template<typename Tuple, typename IndexSequence>
+  struct tuple_of_iterator_references_helper;
+
 template<typename Tuple, size_t... I>
-  struct tuple_of_iterator_references_helper
+  struct tuple_of_iterator_references_helper<Tuple, thrust::__index_sequence<I...>>
 {
   typedef thrust::detail::tuple_of_iterator_references<
     typename thrust::tuple_element<I,Tuple>::type...
@@ -338,11 +309,11 @@ template<typename IteratorTuple>
     iterator_reference
   >::type tuple_of_references;
 
-#if 0   // XXX upon variadic tuple
+#ifdef THRUST_VARIADIC_TUPLE
   // map thrust::tuple<T...> to tuple_of_iterator_references<T...>
   typedef typename tuple_of_iterator_references_helper<
     tuple_of_references,
-    __make_index_sequence<tuple_size<tuple_of_references>::value>
+    thrust::__make_index_sequence<thrust::tuple_size<tuple_of_references>::value>
   >::type type;
 #else
   // get at the individual tuple element types by name

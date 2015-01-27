@@ -93,8 +93,9 @@ template<
     inline __host__ __device__
     tuple_of_iterator_references() {}
 
-    inline __host__ __device__ 
-    tuple_of_iterator_references(typename access_traits<Types>::parameter_type... ts)
+    template<typename... Types_>
+    inline __host__ __device__
+    tuple_of_iterator_references(typename access_traits<Types_>::parameter_type... ts)
       : super_t(ts...)
     {}
 };
