@@ -23,6 +23,16 @@
 #include <thrust/detail/config.h>
 #include <utility>
 
+#ifdef THRUST_VARIADIC_TUPLE
+
+namespace thrust
+{
+using std::pair;
+using std::make_pair;
+}
+
+#else
+
 namespace thrust
 {
 
@@ -281,3 +291,4 @@ template<typename Pair> struct tuple_size;
 
 #include <thrust/detail/pair.inl>
 
+#endif // THRUST_VARIADIC_TUPLE

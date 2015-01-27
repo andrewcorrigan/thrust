@@ -23,6 +23,8 @@ namespace thrust
 // define null_type
 struct null_type {};
 
+#ifndef THRUST_VARIADIC_TUPLE
+
 // null_type comparisons
 __host__ __device__ inline
 bool operator==(const null_type&, const null_type&) { return true; }
@@ -105,6 +107,7 @@ template <class HT, class TT> struct cons;
 
 } // end detail
 
+#endif // !defined(THRUST_VARIADIC_TUPLE)
 
 // -- some traits classes for get functions
 template <class T> struct access_traits
@@ -128,6 +131,8 @@ template <class T> struct access_traits<T&>
 
   typedef T& parameter_type;
 }; // end access_traits<T&>
+
+#ifndef THRUST_VARIADIC_TUPLE
 
 // forward declarations of get()
 template<int N, class HT, class TT>
@@ -943,6 +948,8 @@ inline bool operator>=(const detail::cons<T1, T2>& lhs, const detail::cons<S1, S
 
   return detail::gte(lhs, rhs);
 } // end operator>=()
+
+#endif // !defined(THRUST_VARIADIC_TUPLE)
 
 } // end thrust
 

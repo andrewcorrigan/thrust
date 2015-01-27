@@ -32,7 +32,37 @@
 
 #include <thrust/detail/config.h>
 #include <thrust/detail/tuple/tuple.h>
+#include <thrust/detail/tuple/index_sequence.h>
 #include <thrust/pair.h>
+
+#ifdef THRUST_VARIADIC_TUPLE
+#include <tuple>
+
+namespace thrust
+{
+struct null_type;
+
+using std::tuple;
+using std::make_tuple;
+using std::get;
+template<int N, class T>
+struct tuple_element
+{
+    typedef typename std::tuple_element<N, T>::type type;
+};
+
+template<class T>
+struct tuple_size
+{
+    static const int value = std::tuple_size<T>::value;
+};
+
+using std::tuple_cat;
+using std::tie;
+}
+#include <thrust/detail/tuple/tuple_io.h>
+
+#else
 
 namespace thrust
 {
@@ -578,39 +608,6 @@ bool operator>(const null_type&, const null_type&);
 
 /*! \} // utility
  */
-
-// define index sequence in case it is missing  // XXX upon C++14 replace with std:: equivalents
-
-template<size_t... I> struct __index_sequence {};
-
-template<size_t Start, typename Indices, size_t End>
-struct __make_index_sequence_impl;
-
-template<size_t Start, size_t... Indices, size_t End>
-struct __make_index_sequence_impl<
-  Start,
-  __index_sequence<Indices...>,
-  End
->
-{
-  typedef typename __make_index_sequence_impl<
-    Start + 1,
-    __index_sequence<Indices..., Start>,
-    End
-  >::type type;
-};
-
-template<size_t End, size_t... Indices>
-struct __make_index_sequence_impl<End, __index_sequence<Indices...>, End>
-{
-  typedef __index_sequence<Indices...> type;
-};
-
-template<size_t N>
-using __make_index_sequence = typename __make_index_sequence_impl<0, __index_sequence<>, N>::type;
-
-template<class... T>
-using __index_sequence_for = __make_index_sequence<sizeof...(T)>;
     
 } // end thrust
 
@@ -714,3 +711,5 @@ inline std::basic_istream<CharType, CharTrait>&
 /*! \} // utility
  */
 } // end thrust
+
+#endif // THRUST_VARIADIC_TUPLE
