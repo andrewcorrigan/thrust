@@ -31,30 +31,30 @@ struct tuple_traits
 {
   using tuple_type = T;
 
-  static const size_t size = std::tuple_size<tuple_type>::value; 
+  static const size_t size = thrust::tuple_size<tuple_type>::value; 
 
   template<size_t i>
-  using element_type = typename std::tuple_element<i,tuple_type>::type;
+  using element_type = typename thrust::tuple_element<i,tuple_type>::type;
 
   template<size_t i>
   __TUPLE_ANNOTATION
   static element_type<i>& get(tuple_type& t)
   {
-    return std::get<i>(t);
+    return thrust::get<i>(t);
   }
 
   template<size_t i>
   __TUPLE_ANNOTATION
   static const element_type<i>& get(const tuple_type& t)
   {
-    return std::get<i>(t);
+    return thrust::get<i>(t);
   }
 
   template<size_t i>
   __TUPLE_ANNOTATION
   static element_type<i>&& get(tuple_type&& t)
   {
-    return std::get<i>(std::move(t));
+    return thrust::get<i>(std::move(t));
   }
 };
 
@@ -87,11 +87,11 @@ template<size_t I, class Tuple1, class... Tuples>
 struct __tuple_cat_get_result
 {
   using tuple1_type = typename std::decay<Tuple1>::type;
-  static const size_t size1 = std::tuple_size<typename std::decay<Tuple1>::type>::value;
+  static const size_t size1 = thrust::tuple_size<typename std::decay<Tuple1>::type>::value;
 
   using type = typename __lazy_conditional<
     (I < size1),
-    std::tuple_element<I,tuple1_type>,
+    thrust::tuple_element<I,tuple1_type>,
     __tuple_cat_get_result<I - size1, Tuples...>
   >::type;
 };
@@ -99,7 +99,7 @@ struct __tuple_cat_get_result
 
 template<size_t I, class Tuple1>
 struct __tuple_cat_get_result<I,Tuple1>
-  : std::tuple_element<I, typename std::decay<Tuple1>::type>
+  : thrust::tuple_element<I, typename std::decay<Tuple1>::type>
 {};
 
 
@@ -123,7 +123,7 @@ __TUPLE_ANNOTATION
 typename __tuple_cat_get_result<I,Tuple1,Tuples...>::type
   __tuple_cat_get_impl(std::true_type, Tuple1&&, Tuples&&... ts)
 {
-  const size_t J = I - std::tuple_size<typename std::decay<Tuple1>::type>::value;
+  const size_t J = I - thrust::tuple_size<typename std::decay<Tuple1>::type>::value;
   return __tuple_cat_get<J>(std::forward<Tuples>(ts)...);
 }
 
@@ -134,7 +134,7 @@ typename __tuple_cat_get_result<I,Tuple1,Tuples...>::type
   __tuple_cat_get(Tuple1&& t, Tuples&&... ts)
 {
   auto recurse = typename std::conditional<
-    I < std::tuple_size<typename std::decay<Tuple1>::type>::value,
+    I < thrust::tuple_size<typename std::decay<Tuple1>::type>::value,
     std::false_type,
     std::true_type
   >::type();
@@ -174,7 +174,7 @@ auto tuple_cat_apply(Function f, Tuples&&... ts)
          __make_index_sequence<
            __sum<
              0u,
-             std::tuple_size<typename std::decay<Tuples>::type>::value...
+             thrust::tuple_size<typename std::decay<Tuples>::type>::value...
            >::value
          >(),
          f,
@@ -182,7 +182,7 @@ auto tuple_cat_apply(Function f, Tuples&&... ts)
        )
      )
 {
-  const size_t N = __sum<0u, std::tuple_size<typename std::decay<Tuples>::type>::value...>::value;
+  const size_t N = __sum<0u, thrust::tuple_size<typename std::decay<Tuples>::type>::value...>::value;
   return __tuple_cat_apply_impl(__make_index_sequence<N>(), f, std::forward<Tuples>(ts)...);
 }
 
