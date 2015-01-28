@@ -90,17 +90,47 @@ template<
 
 
     // duplicate thrust::tuple's constructors
+#if 0   // C++11 constructor inheritance    -- not supported on gcc 4.7, try disabling if it causes problems
+    using super_t::super_t;
+#else
     inline __host__ __device__
     tuple_of_iterator_references() {}
 
-    template<typename... Types_>
+    template<typename... UTypes>
     inline __host__ __device__
-    tuple_of_iterator_references(typename access_traits<Types_>::parameter_type... ts)
+    tuple_of_iterator_references(typename access_traits<UTypes>::parameter_type... ts)
       : super_t(ts...)
     {}
+#endif
 };
 
 
 } // end detail
+
+#ifdef THRUST_VARIADIC_TUPLE
+// define tuple_size, tuple_element, etc.
+template<class... Types>
+struct tuple_size<detail::tuple_of_iterator_references<Types...>>
+  : std::integral_constant<size_t, sizeof...(Types)>
+{};
+
+template<size_t i>
+struct tuple_element<i, detail::tuple_of_iterator_references<>> {};
+
+
+template<class Type1, class... Types>
+struct tuple_element<0, detail::tuple_of_iterator_references<Type1,Types...>>
+{
+  using type = Type1;
+};
+
+
+template<size_t i, class Type1, class... Types>
+struct tuple_element<i, detail::tuple_of_iterator_references<Type1,Types...>>
+{
+  using type = typename tuple_element<i - 1, detail::tuple_of_iterator_references<Types...>>::type;
+};
+#endif
+
 } // end thrust
 

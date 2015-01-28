@@ -36,33 +36,8 @@
 #include <thrust/pair.h>
 
 #ifdef THRUST_VARIADIC_TUPLE
-#include <tuple>
-
-namespace thrust
-{
-struct null_type;
-
-using std::tuple;
-using std::make_tuple;
-using std::get;
-template<int N, class T>
-struct tuple_element
-{
-    typedef typename std::tuple_element<N, T>::type type;
-};
-
-template<class T>
-struct tuple_size
-{
-    static const int value = std::tuple_size<T>::value;
-};
-
-using std::tuple_cat;
-using std::tie;
-}
-#include <thrust/detail/tuple/tuple_io.h>
-
-#else
+#  include <thrust/detail/tuple/variadic_tuple.h>
+#else // THRUST_VARIADIC_TUPLE
 
 namespace thrust
 {
@@ -92,7 +67,7 @@ struct null_type;
  *  \see pair
  *  \see tuple
  */
-template<int N, class T>
+template<size_t N, class T>
   struct tuple_element
 {
   private:
@@ -611,8 +586,11 @@ bool operator>(const null_type&, const null_type&);
     
 } // end thrust
 
-#include <thrust/detail/tuple/tuple_io.h>
 #include <thrust/detail/tuple/tuple_cat.h>
+
+#endif
+
+#include <thrust/detail/tuple/tuple_io.h>
 
 namespace thrust
 {
@@ -631,10 +609,17 @@ namespace thrust
  *  \param ts The other objects to concatenate.
  *  \return A \p tuple object which is a concatenation of \p t0 and \p ts... .
  */
+#ifdef THRUST_VARIADIC_TUPLE
+template<typename... Tuples>
+inline __host__ __device__
+tuple_cat_result<Tuples...>
+  tuple_cat(const Tuples&... ts);
+#else
 template<typename Tuple1, typename... Tuples>
 inline __host__ __device__
 typename thrust::detail::tuple_cat_enable_if<Tuple1,Tuples...>::type
   tuple_cat(const Tuple1 &t1, const Tuples&... ts);
+#endif
 
 /*! tuple_manipulator for defining the character that is output before the first element of a tuple
  *
@@ -711,5 +696,3 @@ inline std::basic_istream<CharType, CharTrait>&
 /*! \} // utility
  */
 } // end thrust
-
-#endif // THRUST_VARIADIC_TUPLE

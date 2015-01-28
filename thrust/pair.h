@@ -23,16 +23,6 @@
 #include <thrust/detail/config.h>
 #include <utility>
 
-#ifdef THRUST_VARIADIC_TUPLE
-
-namespace thrust
-{
-using std::pair;
-using std::make_pair;
-}
-
-#else
-
 namespace thrust
 {
 
@@ -238,7 +228,7 @@ template <typename T1, typename T2>
  *  \tparam N This parameter selects the member of interest.
  *  \tparam T A \c pair type of interest.
  */
-template<int N, typename T> struct tuple_element;
+template<size_t, class> struct tuple_element;
 
 
 /*! This convenience metafunction is included for compatibility with
@@ -291,4 +281,3 @@ template<typename Pair> struct tuple_size;
 
 #include <thrust/detail/pair.inl>
 
-#endif // THRUST_VARIADIC_TUPLE

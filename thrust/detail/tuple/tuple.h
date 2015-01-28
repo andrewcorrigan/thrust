@@ -53,7 +53,7 @@ template <
 class tuple;
 
 // forward declaration of tuple_element
-template<int i, typename T> struct tuple_element;
+template<size_t i, typename T> struct tuple_element;
 
 // specializations for tuple_element
 template<class T>
