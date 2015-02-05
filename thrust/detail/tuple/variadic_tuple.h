@@ -1,9 +1,34 @@
+// Copyright (c) 2014, NVIDIA CORPORATION. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//  * Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//  * Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//  * Neither the name of NVIDIA CORPORATION nor the names of its
+//    contributors may be used to endorse or promote products derived
+//    from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #pragma once
 
+#include <stddef.h> // XXX instead of <cstddef> to WAR clang issue
 #include <type_traits>
-#include <stddef.h>
 #include <utility>
-//#include <tuple>
 
 // allow the user to define an annotation to apply to these functions
 // by default, it attempts to be constexpr
@@ -11,7 +36,7 @@
 #  if __cplusplus <= 201103L
 #    define __TUPLE_ANNOTATION __device__ __host__
 #  else
-#    define __TUPLE_ANNOTATION constexpr __device__ __host__
+#    define __TUPLE_ANNOTATION /*constexpr*/ __device__ __host__
 #  endif
 #  define __TUPLE_ANNOTATION_NEEDS_UNDEF
 #endif
@@ -20,16 +45,14 @@
 #ifndef __TUPLE_NAMESPACE
 #define __TUPLE_NAMESPACE thrust
 #else
-#error __TUPLE_NAMESPACE
+#  error __TUPLE_NAMESPACE
 #endif
 
 
 namespace __TUPLE_NAMESPACE
 {
 
-
 template<class... Types> class tuple;
-
 
 //} // end namespace
 
@@ -78,604 +101,489 @@ struct tuple_size<__TUPLE_NAMESPACE::tuple<Types...>>
 
 //namespace __TUPLE_NAMESPACE
 //{
-namespace __tuple_detail
+
+
+// define variadic "and" operator 
+// prefix with "__tuple" to avoid collisions with other implementations 
+template <typename... Conditions>
+  struct __tuple_and;
+
+template<>
+  struct __tuple_and<>
+    : public std::true_type
 {
+};
+
+template <typename Condition, typename... Conditions>
+  struct __tuple_and<Condition, Conditions...>
+    : public std::integral_constant<
+        bool,
+        Condition::value && __tuple_and<Conditions...>::value>
+{
+};
+
+// XXX this implementation is based on Howard Hinnant's "tuple leaf" construction in libcxx
 
 
 // define index sequence in case it is missing
-template<size_t... I> struct __index_sequence {};
+// prefix this stuff with "tuple" to avoid collisions with other implementations
+template<size_t... I> struct __tuple_index_sequence {};
 
 template<size_t Start, typename Indices, size_t End>
-struct __make_index_sequence_impl;
+struct __tuple_make_index_sequence_impl;
 
 template<size_t Start, size_t... Indices, size_t End>
-struct __make_index_sequence_impl<
+struct __tuple_make_index_sequence_impl<
   Start,
-  __index_sequence<Indices...>, 
+  __tuple_index_sequence<Indices...>, 
   End
 >
 {
-  typedef typename __make_index_sequence_impl<
+  typedef typename __tuple_make_index_sequence_impl<
     Start + 1,
-    __index_sequence<Indices..., Start>,
+    __tuple_index_sequence<Indices..., Start>,
     End
   >::type type;
 };
 
 template<size_t End, size_t... Indices>
-struct __make_index_sequence_impl<End, __index_sequence<Indices...>, End>
+struct __tuple_make_index_sequence_impl<End, __tuple_index_sequence<Indices...>, End>
 {
-  typedef __index_sequence<Indices...> type;
+  typedef __tuple_index_sequence<Indices...> type;
 };
 
 template<size_t N>
-using __make_index_sequence = typename __make_index_sequence_impl<0, __index_sequence<>, N>::type;
+using __tuple_make_index_sequence = typename __tuple_make_index_sequence_impl<0, __tuple_index_sequence<>, N>::type;
 
-
-} // end __tuple_detail
-
-
-template<class Type1, class... Types>
-class tuple<Type1,Types...>
+template<size_t I, class T>
+class __tuple_leaf
 {
   public:
     __TUPLE_ANNOTATION
-    tuple() : head_(), tail_() {}
+    __tuple_leaf() = default;
 
-
-    __TUPLE_ANNOTATION
-    explicit tuple(const Type1& arg1, const Types&... args)
-      : head_(arg1), tail_(args...)
-    {}
-
-
-    template<class UType1, class... UTypes,
+    template<class U,
              class = typename std::enable_if<
-               (sizeof...(Types) == sizeof...(UTypes)) &&
-               std::is_constructible<Type1,UType1&&>::value // XXX fill in the rest of these
+               std::is_constructible<T,U>::value
              >::type>
     __TUPLE_ANNOTATION
-    explicit tuple(UType1&& arg1, UTypes&&... args)
-      : head_(std::forward<UType1>(arg1)),
-        tail_(std::forward<UTypes>(args)...)
-    {}
+    __tuple_leaf(U&& arg) : val_(std::forward<U>(arg)) {}
 
-
-    template<class UType1, class... UTypes,
+    template<class U,
              class = typename std::enable_if<
-               (sizeof...(Types) == sizeof...(UTypes)) &&
-               std::is_constructible<Type1,const UType1&>::value // XXX fill in the rest of these
+               std::is_constructible<T,U>::value
              >::type>
     __TUPLE_ANNOTATION
-    tuple(const tuple<UType1,UTypes...>& other)
-      : head_(other.head_),
-        tail_(other.tail_)
-    {}
+    __tuple_leaf(const __tuple_leaf<I,U>& other) : val_(other.const_get()) {}
 
 
-    template<class UType1, class... UTypes,
+    template<class U,
              class = typename std::enable_if<
-               (sizeof...(Types) == sizeof...(UTypes))
+               std::is_assignable<T,U>::value
              >::type>
     __TUPLE_ANNOTATION
-    tuple(tuple<UType1,UTypes...>&& other)
-      : head_(std::move(other.head_)),
-        tail_(std::move(other.tail_))
-    {}
-
-
-    template<class UType1, class UType2,
-             class = typename std::enable_if<
-               (sizeof...(Types) == 1) &&
-               std::is_constructible<Type1,const UType1&>::value // XXX fill in the rest of these
-             >::type>
-    __TUPLE_ANNOTATION
-    tuple(const __TUPLE_NAMESPACE::pair<UType1,UType2>& p)
-      : head_(p.first),
-        tail_(p.second)
-    {}
-
-
-    template<class UType1, class UType2,
-             class = typename std::enable_if<
-               (sizeof...(Types) == 1) &&
-               std::is_constructible<Type1,UType1&&>::value // XXX fill in the rest of these
-             >::type>
-    __TUPLE_ANNOTATION
-    tuple(__TUPLE_NAMESPACE::pair<UType1,UType2>&& p)
-      : head_(std::move(p.first)),
-        tail_(std::move(p.second))
-    {}
-
-
-    __TUPLE_ANNOTATION
-    tuple(const tuple& other)
-      : head_(other.head_),
-        tail_(other.tail_)
-    {}
-
-
-    __TUPLE_ANNOTATION
-    tuple(tuple&& other)
-      : head_(std::forward<Type1>(other.head_)),
-        tail_(std::move(other.tail_))
-    {}
-
-
-  private:
-    template<class... UTypes>
-    __TUPLE_ANNOTATION
-    static tuple<UTypes&&...> forward_as_tuple(UTypes&&... args)
+    __tuple_leaf& operator=(const __tuple_leaf<I,U>& other)
     {
-      return tuple<UTypes&&...>(std::forward<UTypes>(args)...);
+      mutable_get() = other.const_get();
+      return *this;
     }
-
-
-public:
+    
     __TUPLE_ANNOTATION
-    tuple& operator=(const tuple& other)
+    __tuple_leaf& operator=(const __tuple_leaf& other)
     {
-      head_ = other.head_;
-      tail_ = other.tail_;
+      mutable_get() = other.const_get();
       return *this;
     }
 
+    template<class U,
+             class = typename std::enable_if<
+               std::is_assignable<T,U&&>::value
+             >::type>
+    __TUPLE_ANNOTATION
+    __tuple_leaf& operator=(__tuple_leaf<I,U>&& other)
+    {
+      mutable_get() = std::move(other.mutable_get());
+      return *this;
+    }
+
+    __TUPLE_ANNOTATION
+    const T& const_get() const
+    {
+      return val_;
+    }
+  
+    __TUPLE_ANNOTATION
+    T& mutable_get()
+    {
+      return val_;
+    }
+
+    __TUPLE_ANNOTATION
+    int swap(__tuple_leaf& other)
+    {
+      using thrust::swap;
+      swap(mutable_get(), other.mutable_get());
+      return 0;
+    }
+
+  private:
+    T val_; // XXX apply empty base class optimization to this
+};
+
+template<class... Args>
+struct __type_list {};
+
+template<size_t i, class... Args>
+struct __type_at_impl;
+
+template<size_t i, class Arg0, class... Args>
+struct __type_at_impl<i, Arg0, Args...>
+{
+  using type = typename __type_at_impl<i-1, Args...>::type;
+};
+
+template<class Arg0, class... Args>
+struct __type_at_impl<0, Arg0,Args...>
+{
+  using type = Arg0;
+};
+
+template<size_t i, class... Args>
+using __type_at = typename __type_at_impl<i,Args...>::type;
+
+template<class IndexSequence, class... Args>
+class __tuple_base;
+
+template<size_t... I, class... Types>
+class __tuple_base<__tuple_index_sequence<I...>, Types...>
+  : public __tuple_leaf<I,Types>...
+{
+  public:
+    using leaf_types = __type_list<__tuple_leaf<I,Types>...>;
+
+    __TUPLE_ANNOTATION
+    __tuple_base() = default;
+
+    __TUPLE_ANNOTATION
+    __tuple_base(const Types&... args)
+      : __tuple_leaf<I,Types>(args)...
+    {}
+
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+               __tuple_and<
+                 std::is_constructible<Types,UTypes&&>...
+               >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    explicit __tuple_base(UTypes&&... args)
+      : __tuple_leaf<I,Types>(std::forward<UTypes>(args))...
+    {}
+
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+               __tuple_and<
+                 std::is_constructible<Types,const UTypes&>...
+                >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    __tuple_base(const __tuple_base<__tuple_index_sequence<I...>,UTypes...>& other)
+      : __tuple_leaf<I,Types>(other)...
+    {}
+
+    __TUPLE_ANNOTATION
+    __tuple_base& operator=(const __tuple_base& other)
+    {
+      swallow((mutable_leaf<I>() = other.template const_leaf<I>())...);
+      return *this;
+    }
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+               __tuple_and<
+                 std::is_assignable<Types,const UTypes&>...
+                >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    __tuple_base& operator=(const __tuple_base<__tuple_index_sequence<I...>,UTypes...>& other)
+    {
+      swallow((mutable_leaf<I>() = other.template const_leaf<I>())...);
+      return *this;
+    }
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+               __tuple_and<
+                 std::is_assignable<Types,UTypes&&>...
+               >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    __tuple_base& operator=(__tuple_base<__tuple_index_sequence<I...>,UTypes...>&& other)
+    {
+      swallow((mutable_leaf<I>() = std::move(other.template mutable_leaf<I>()))...);
+      return *this;
+    }
+
+    template<size_t i>
+    __TUPLE_ANNOTATION
+    const __tuple_leaf<i,__type_at<i,Types...>>& const_leaf() const
+    {
+      return *this;
+    }
+
+    template<size_t i>
+    __TUPLE_ANNOTATION
+    __tuple_leaf<i,__type_at<i,Types...>>& mutable_leaf()
+    {
+      return *this;
+    }
+
+    template<size_t i>
+    __TUPLE_ANNOTATION
+    __tuple_leaf<i,__type_at<i,Types...>>&& move_leaf() &&
+    {
+      return std::move(*this);
+    }
+
+    __TUPLE_ANNOTATION
+    void swap(__tuple_base& other)
+    {
+      swallow(__tuple_leaf<I,Types>::swap(other)...);
+    }
+
+    template<size_t i>
+    __TUPLE_ANNOTATION
+    const __type_at<i,Types...>& const_get() const
+    {
+      return const_leaf<i>().const_get();
+    }
+
+    template<size_t i>
+    __TUPLE_ANNOTATION
+    __type_at<i,Types...>& mutable_get()
+    {
+      return mutable_leaf<i>().mutable_get();
+    }
+
+  private:
+    template<class... Args>
+    __TUPLE_ANNOTATION
+    static void swallow(Args&&...) {}
+};
+
+
+template<class... Types>
+class tuple
+{
+  public:
+    __TUPLE_ANNOTATION
+    tuple() : base_{} {};
+
+    __TUPLE_ANNOTATION
+    explicit tuple(const Types&... args)
+      : base_{args...}
+    {}
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+               __tuple_and<
+                 std::is_constructible<Types,UTypes&&>...
+               >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    explicit tuple(UTypes&&... args)
+      : base_{std::forward<UTypes>(args)...}
+    {}
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+                 __tuple_and<
+                   std::is_constructible<Types,const UTypes&>...
+                 >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    tuple(const tuple<UTypes...>& other)
+      : base_{other.base_}
+    {}
+
+    template<class... UTypes,
+             class = typename std::enable_if<
+               (sizeof...(Types) == sizeof...(UTypes)) &&
+                 __tuple_and<
+                   std::is_constructible<Types,UTypes&&>...
+                 >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    tuple(tuple<UTypes...>&& other)
+      : base_{std::move(other.base_)}
+    {}
+
+    template<class UType1, class UType2,
+             class = typename std::enable_if<
+               (sizeof...(Types) == 2) &&
+               __tuple_and<
+                 std::is_constructible<__type_at<                            0,Types...>,const UType1&>,
+                 std::is_constructible<__type_at<sizeof...(Types) == 2 ? 1 : 0,Types...>,const UType2&>
+               >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    tuple(const thrust::pair<UType1,UType2>& p)
+      : base_{p.first, p.second}
+    {}
+
+    template<class UType1, class UType2,
+             class = typename std::enable_if<
+               (sizeof...(Types) == 2) &&
+               __tuple_and<
+                 std::is_constructible<__type_at<                            0,Types...>,UType1&&>,
+                 std::is_constructible<__type_at<sizeof...(Types) == 2 ? 1 : 0,Types...>,UType2&&>
+               >::value
+             >::type>
+    __TUPLE_ANNOTATION
+    tuple(thrust::pair<UType1,UType2>&& p)
+      : base_{std::move(p.first), std::move(p.second)}
+    {}
+
+    __TUPLE_ANNOTATION
+    tuple(const tuple& other)
+      : base_{other.base_}
+    {}
+
+    __TUPLE_ANNOTATION
+    tuple(tuple&& other)
+      : base_{std::move(other.base_)}
+    {}
+
+    __TUPLE_ANNOTATION
+    tuple& operator=(const tuple& other)
+    {
+      base_.operator=(other.base_);
+      return *this;
+    }
 
     __TUPLE_ANNOTATION
     tuple& operator=(tuple&& other)
     {
-      head_ = std::move(other.head_);
-      tail_ = std::move(other.tail_);
+      base_.operator=(std::move(other.base_));
       return *this;
     }
-
 
     template<class... UTypes>
     __TUPLE_ANNOTATION
     tuple& operator=(const tuple<UTypes...>& other)
     {
-      head_ = other.head_;
-      tail_ = other.tail_;
+      base_.operator=(other.base_);
       return *this;
     }
-
 
     template<class... UTypes>
     __TUPLE_ANNOTATION
     tuple& operator=(tuple<UTypes...>&& other)
     {
-      head_ = std::move(other.head_);
-      tail_ = std::move(other.tail_);
+      base_.operator=(other.base_);
       return *this;
     }
-
 
     template<class UType1, class UType2,
              class = typename std::enable_if<
-               (sizeof...(Types) == 1) &&
-               std::is_assignable<Type1,const UType1&>::value // XXX fill in the rest of these
+               (sizeof...(Types) == 2) &&
+               __tuple_and<
+                 std::is_assignable<__type_at<                            0,Types...>,const UType1&>,
+                 std::is_assignable<__type_at<sizeof...(Types) == 2 ? 1 : 0,Types...>,const UType2&>
+               >::value
              >::type>
     __TUPLE_ANNOTATION
-    tuple& operator=(const __TUPLE_NAMESPACE::pair<UType1,UType2>& p)
+    tuple& operator=(const thrust::pair<UType1,UType2>& p)
     {
-      head_ = p.first;
-      tail_ = tuple<UType2>(p.second);
+      this->template mutable_get<0>() = p.first;
+      this->template mutable_get<1>() = p.second;
       return *this;
     }
-
-
     template<class UType1, class UType2,
              class = typename std::enable_if<
-               (sizeof...(Types) == 1) &&
-               std::is_assignable<Type1,UType1&&>::value // XXX fill in the rest of these
+               (sizeof...(Types) == 2) &&
+               __tuple_and<
+                 std::is_assignable<__type_at<                            0,Types...>,UType1&&>,
+                 std::is_assignable<__type_at<sizeof...(Types) == 2 ? 1 : 0,Types...>,UType2&&>
+               >::value
              >::type>
     __TUPLE_ANNOTATION
-    tuple& operator=(__TUPLE_NAMESPACE::pair<UType1,UType2>&& p)
+    tuple& operator=(thrust::pair<UType1,UType2>&& p)
     {
-      head_ = std::move(p.first);
-      tail_ = std::move(tuple<UType2>(std::move(p.second)));
+      this->template mutable_get<0>() = std::move(p.first);
+      this->template mutable_get<1>() = std::move(p.second);
       return *this;
     }
-      
 
     __TUPLE_ANNOTATION
     void swap(tuple& other)
     {
-      using std::swap;
-
-      swap(head_, other.head_);
-      tail_.swap(other.tail_);
+      base_.swap(other.base_);
     }
-
-    
-    template<class... UTypes >
-    __TUPLE_ANNOTATION
-    bool operator==(const tuple<UTypes...>& rhs ) const
-    {
-        return head_ == rhs.head_ && tail_ == rhs.tail_;
-    }
-
-
-    template<class... UTypes >
-    __TUPLE_ANNOTATION
-    bool operator!=(const tuple<UTypes...>& rhs ) const
-    {
-        return head_ != rhs.head_ || tail_ != rhs.tail_;
-    }
-
-
-    template<class... UTypes >
-    __TUPLE_ANNOTATION
-    bool operator<(const tuple<UTypes...>& rhs ) const
-    {
-      return (head_ < rhs.head_)  ||
-                (!(rhs.head_ < head_) &&
-                 tail_ < rhs.tail_);
-
-    }
-
 
   private:
-    Type1 head_;
-    tuple<Types...> tail_;
-
-
     template<class... UTypes>
     friend class tuple;
 
-
-    // mutable get
     template<size_t i>
     __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    mutable_get_impl(std::true_type)
+    const typename thrust::tuple_element<i,tuple>::type& const_get() const
     {
-      return head_;
+      return base_.template const_get<i>();
     }
 
     template<size_t i>
     __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i,tuple>::type&
-    mutable_get_impl(std::false_type)
+    typename thrust::tuple_element<i,tuple>::type& mutable_get()
     {
-      return tail_.template mutable_get<i-1>();
+      return base_.template mutable_get<i>();
     }
 
-
-    // const get
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    const_get_impl(std::true_type) const
-    {
-      return head_;
-    }
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i,tuple>::type&
-    const_get_impl(std::false_type) const
-    {
-      return tail_.template const_get<i-1>();
-    }
-
-
-    // move get
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&&
-    move_get_impl(std::true_type) &&
-    {
-      return std::forward<typename __TUPLE_NAMESPACE::tuple_element<i,tuple>::type&&>(head_);
-    }
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i,tuple>::type&&
-    move_get_impl(std::false_type) &&
-    {
-      return std::move(tail_).template move_get<i-1>();
-    }
-
-  protected:
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    mutable_get()
-    {
-      return mutable_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    const_get() const
-    {
-      return const_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&&
-    move_get() &&
-    {
-      return std::move(*this).template move_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
+    using base_type = __tuple_base<__tuple_make_index_sequence<sizeof...(Types)>, Types...>;
+    base_type base_; 
 
   public:
     template<size_t i, class... UTypes>
     friend __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
-    __TUPLE_NAMESPACE::get(__TUPLE_NAMESPACE::tuple<UTypes...>& t);
+    typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
+    thrust::get(__TUPLE_NAMESPACE::tuple<UTypes...>& t);
 
 
     template<size_t i, class... UTypes>
     friend __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
-    __TUPLE_NAMESPACE::get(const __TUPLE_NAMESPACE::tuple<UTypes...>& t);
+    const typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
+    thrust::get(const __TUPLE_NAMESPACE::tuple<UTypes...>& t);
 
 
     template<size_t i, class... UTypes>
     friend __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
-    __TUPLE_NAMESPACE::get(__TUPLE_NAMESPACE::tuple<UTypes...>&& t);
+    typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
+    thrust::get(__TUPLE_NAMESPACE::tuple<UTypes...>&& t);
 };
 
 
-template<class Type1>
-class tuple<Type1>
+template<>
+class tuple<>
 {
   public:
     __TUPLE_ANNOTATION
-    tuple() : head_() {}
-
-
-    __TUPLE_ANNOTATION
-    explicit tuple(const Type1& arg1)
-      : head_(arg1)
-    {}
-
-
-    template<class UType1,
-             class = typename std::enable_if<
-               std::is_constructible<Type1,UType1&&>::value // XXX fill in the rest of these
-             >::type>
-    __TUPLE_ANNOTATION
-    explicit tuple(UType1&& arg1)
-      : head_(std::forward<UType1>(arg1))
-    {}
-
-
-    template<class UType1,
-             class = typename std::enable_if<
-               std::is_constructible<Type1,const UType1&>::value // XXX fill in the rest of these
-             >::type>
-    __TUPLE_ANNOTATION
-    tuple(const tuple<UType1>& other)
-      : head_(other.head_)
-    {}
-
-
-    template<class UType1,
-             class = typename std::enable_if<
-               std::is_constructible<Type1,UType1&&>::value // XXX fill in the rest of these
-             >::type>
-    __TUPLE_ANNOTATION
-    tuple(tuple<UType1>&& other)
-      : head_(std::move(other.head_))
-    {}
-
-
-    __TUPLE_ANNOTATION
-    tuple(const tuple& other)
-      : head_(other.head_)
-    {}
-
-
-    __TUPLE_ANNOTATION
-    tuple(tuple&& other)
-      : head_(std::forward<Type1>(other.head_))
-    {}
-
-
-  private:
-    template<class UType>
-    __TUPLE_ANNOTATION
-    static tuple<UType&&> forward_as_tuple(UType&& arg)
-    {
-      return tuple<UType&&>(std::forward<UType>(arg));
-    }
-
-
-  public:
-    __TUPLE_ANNOTATION
-    tuple& operator=(const tuple& other)
-    {
-      head_ = other.head_;
-      return *this;
-    }
-
-
-    __TUPLE_ANNOTATION
-    tuple& operator=(tuple&& other)
-    {
-      head_ = std::move(other.head_);
-      return *this;
-    }
-
-
-    template<class UType>
-    __TUPLE_ANNOTATION
-    tuple& operator=(const tuple<UType>& other)
-    {
-      head_ = other.head_;
-      return *this;
-    }
-
-
-    template<class UType>
-    __TUPLE_ANNOTATION
-    tuple& operator=(tuple<UType>&& other)
-    {
-      head_ = std::move(other.head_);
-      return *this;
-    }
-      
-
-    __TUPLE_ANNOTATION
-    void swap(tuple& other)
-    {
-      using std::swap;
-
-      swap(head_, other.head_);
-    }
-
-    
-    template<class UType >
-    __TUPLE_ANNOTATION
-    bool operator==(const tuple<UType>& rhs ) const
-    {
-      return head_ == rhs.head_;
-    }
-
-
-    template<class UType >
-    __TUPLE_ANNOTATION
-    bool operator!=(const tuple<UType>& rhs ) const
-    {
-      return head_ != rhs.head_;
-    }
-
-
-    template<class UType >
-    __TUPLE_ANNOTATION
-    bool operator<(const tuple<UType>& rhs ) const
-    {
-      return (head_ < rhs.head_);
-    }
-
-
-  private:
-    Type1 head_;
-
-    template<class... UTypes>
-    friend class tuple;
-
-
-    // mutable get
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    mutable_get_impl(std::true_type)
-    {
-      return head_;
-    }
-
-
-    // const get
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    const_get_impl(std::true_type) const
-    {
-      return head_;
-    }
-
-
-    // move get
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&&
-    move_get_impl(std::true_type) &&
-    {
-      return std::forward<typename __TUPLE_NAMESPACE::tuple_element<i,tuple>::type&&>(head_);
-    }
-
-
-  protected:
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    mutable_get()
-    {
-      return mutable_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&
-    const_get() const
-    {
-      return const_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
-
-    template<size_t i>
-    __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, tuple>::type&&
-    move_get() &&
-    {
-      return std::move(*this).template move_get_impl<i>(std::integral_constant<bool, i == 0>());
-    }
-
-
-  public:
-    template<size_t i, class... UTypes>
-    friend __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
-    __TUPLE_NAMESPACE::get(__TUPLE_NAMESPACE::tuple<UTypes...>& t);
-
-
-    template<size_t i, class... UTypes>
-    friend __TUPLE_ANNOTATION
-    const typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
-    __TUPLE_NAMESPACE::get(const __TUPLE_NAMESPACE::tuple<UTypes...>& t);
-
-
-    template<size_t i, class... UTypes>
-    friend __TUPLE_ANNOTATION
-    typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
-    __TUPLE_NAMESPACE::get(__TUPLE_NAMESPACE::tuple<UTypes...>&& t);
-};
-
-
-template<> class tuple<>
-{
-public:
-  __TUPLE_ANNOTATION
-  void swap(tuple& other)
-  {
-  }
-
-   __TUPLE_ANNOTATION
-  bool operator==(const tuple<>& rhs ) const
-  {
-    return true;
-  }
-
-  __TUPLE_ANNOTATION
-  bool operator!=(const tuple<>& rhs ) const
-  {
-      return false;
-  }
-
-  __TUPLE_ANNOTATION
-  bool operator<(const tuple<>& rhs ) const
-  {
-    return true;
-  }
+    void swap(tuple&){}
 };
 
 
 template<class... Types>
 __TUPLE_ANNOTATION
-void swap(__TUPLE_NAMESPACE::tuple<Types...>& lhs, __TUPLE_NAMESPACE::tuple<Types...>& rhs)
+void swap(tuple<Types...>& a, tuple<Types...>& b)
 {
-  lhs.swap(rhs);
+  a.swap(b);
 }
 
 
@@ -694,17 +602,26 @@ tuple<Types&...> tie(Types&... args)
   return tuple<Types&...>(args...);
 }
 
+
+template<class... Args>
+__TUPLE_ANNOTATION
+__TUPLE_NAMESPACE::tuple<Args&&...> forward_as_tuple(Args&&... args)
+{
+  return __TUPLE_NAMESPACE::tuple<Args&&...>(std::forward<Args>(args)...);
+}
+
+
 //} // end namespace
 
 
-// implement __TUPLE_NAMESPACE::get()
+// implement thrust::get()
 //namespace std
 //{
 
 
 template<size_t i, class... UTypes>
 __TUPLE_ANNOTATION
-typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
+typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
   get(__TUPLE_NAMESPACE::tuple<UTypes...>& t)
 {
   return t.template mutable_get<i>();
@@ -713,7 +630,7 @@ typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>
 
 template<size_t i, class... UTypes>
 __TUPLE_ANNOTATION
-const typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
+const typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &
   get(const __TUPLE_NAMESPACE::tuple<UTypes...>& t)
 {
   return t.template const_get<i>();
@@ -722,19 +639,142 @@ const typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTyp
 
 template<size_t i, class... UTypes>
 __TUPLE_ANNOTATION
-typename __TUPLE_NAMESPACE::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
+typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
   get(__TUPLE_NAMESPACE::tuple<UTypes...>&& t)
 {
-  return std::move(t).template move_get<i>();
+  using type = typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type;
+
+  auto&& leaf = static_cast<__TUPLE_NAMESPACE::__tuple_leaf<i,type>&&>(t.base_);
+
+  return static_cast<type&&>(leaf.mutable_get());
 }
 
 
-} // end std
+//} // end std
+
+// implement comparison overloads
+//namespace __TUPLE_NAMESPACE
+//{
+
+
+__TUPLE_ANNOTATION
+  bool __tuple_all()
+{
+  return true;
+}
+
+
+__TUPLE_ANNOTATION
+  bool __tuple_all(bool t)
+{
+  return t;
+}
+
+
+template<typename... Bools>
+__TUPLE_ANNOTATION
+  bool __tuple_all(bool t, Bools... ts)
+{
+  return t && __tuple_all(ts...);
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator==(const tuple<TTypes...>& t, const tuple<UTypes...>& u);
+
+
+template<class... TTypes, class... UTypes, size_t... I>
+__TUPLE_ANNOTATION
+  bool __tuple_eq(const tuple<TTypes...>& t, const tuple<UTypes...>& u, __tuple_index_sequence<I...>)
+{
+  return __tuple_all((thrust::get<I>(t) == thrust::get<I>(u))...);
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator==(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return __tuple_eq(t, u, __tuple_make_index_sequence<sizeof...(TTypes)>{});
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator<(const tuple<TTypes...>& t, const tuple<UTypes...>& u);
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool __tuple_lt(const tuple<TTypes...>& t, const tuple<UTypes...>& u, __tuple_index_sequence<>)
+{
+  return false;
+}
+
+
+template<size_t I, class... TTypes, class... UTypes, size_t... Is>
+__TUPLE_ANNOTATION
+  bool __tuple_lt(const tuple<TTypes...>& t, const tuple<UTypes...>& u, __tuple_index_sequence<I, Is...>)
+{
+  return (   thrust::get<I>(t) < thrust::get<I>(u)
+          || (!(thrust::get<I>(u) < thrust::get<I>(t))
+              && __tuple_lt(t, u, typename __tuple_make_index_sequence_impl<I+1, __tuple_index_sequence<>, sizeof...(TTypes)>::type{})));
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator<(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return __tuple_lt(t, u, __tuple_make_index_sequence<sizeof...(TTypes)>{});
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator!=(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return !(t == u);
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator>(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return u < t;
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator<=(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return !(u < t);
+}
+
+
+template<class... TTypes, class... UTypes>
+__TUPLE_ANNOTATION
+  bool operator>=(const tuple<TTypes...>& t, const tuple<UTypes...>& u)
+{
+  return !(t < u);
+}
+
+
+} // end namespace
+
 
 #include <thrust/detail/tuple/tuple_cat.h>
 
 #ifdef __TUPLE_ANNOTATION_NEEDS_UNDEF
 #undef __TUPLE_ANNOTATION
 #undef __TUPLE_ANNOTATION_NEEDS_UNDEF
+#endif
+
+#ifdef __TUPLE_NAMESPACE_NEEDS_UNDEF
+#undef __TUPLE_NAMESPACE
+#undef __TUPLE_NAMESPACE_NEEDS_UNDEF
 #endif
 
