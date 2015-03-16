@@ -14,6 +14,8 @@
  *  limitations under the License.
  */
 
+#pragma once
+
 #include <thrust/detail/type_traits.h>
 #include <thrust/detail/swap.h>
 

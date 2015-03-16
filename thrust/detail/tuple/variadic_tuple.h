@@ -658,14 +658,14 @@ typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
 
 
 __TUPLE_ANNOTATION
-  bool __tuple_all()
+  inline bool __tuple_all()
 {
   return true;
 }
 
 
 __TUPLE_ANNOTATION
-  bool __tuple_all(bool t)
+  inline bool __tuple_all(bool t)
 {
   return t;
 }

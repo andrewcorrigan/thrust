@@ -18,6 +18,8 @@
  *  \brief Provides C++14 index_sequence-related functionality in C++11
  */
 
+#pragma once
+
 namespace thrust
 {
 
