@@ -285,7 +285,7 @@ template<typename InputIterator,
  *  \param last The end of the range of interest.
  *  \param pred A predicate to evaluate for each element of the range
  *              <tt>[first,last)</tt>. Elements for which \p pred evaluates to
- *              \c false are removed from the sequence.
+ *              \c true are removed from the sequence.
  *  \return A ForwardIterator pointing to the end of the resulting range of
  *          elements for which \p pred evaluated to \c true.
  *
@@ -361,7 +361,7 @@ __host__ __device__
  *  \param last The end of the range of interest.
  *  \param pred A predicate to evaluate for each element of the range
  *              <tt>[first,last)</tt>. Elements for which \p pred evaluates to
- *              \c false are removed from the sequence.
+ *              \c true are removed from the sequence.
  *  \return A ForwardIterator pointing to the end of the resulting range of
  *          elements for which \p pred evaluated to \c true.
  *
@@ -564,7 +564,7 @@ template<typename InputIterator,
  *  \param stencil The beginning of the stencil sequence.
  *  \param pred A predicate to evaluate for each element of the range
  *              <tt>[stencil, stencil + (last - first))</tt>. Elements for which \p pred evaluates to
- *              \c false are removed from the sequence <tt>[first, last)</tt>
+ *              \c true are removed from the sequence <tt>[first, last)</tt>
  *  \return A ForwardIterator pointing to the end of the resulting range of
  *          elements for which \p pred evaluated to \c true.
  *
@@ -590,7 +590,7 @@ template<typename InputIterator,
  *  int A[N] = {1, 4, 2, 8, 5, 7};
  *  int S[N] = {0, 1, 1, 1, 0, 0};
  *
- *  int *new_end = thrust::remove(thrust::host, A, A + N, S, thrust::identity<int>());
+ *  int *new_end = thrust::remove_if(thrust::host, A, A + N, S, thrust::identity<int>());
  *  // The first three values of A are now {1, 5, 7}
  *  // Values beyond new_end are unspecified
  *  \endcode
@@ -627,7 +627,7 @@ __host__ __device__
  *  \param stencil The beginning of the stencil sequence.
  *  \param pred A predicate to evaluate for each element of the range
  *              <tt>[stencil, stencil + (last - first))</tt>. Elements for which \p pred evaluates to
- *              \c false are removed from the sequence <tt>[first, last)</tt>
+ *              \c true are removed from the sequence <tt>[first, last)</tt>
  *  \return A ForwardIterator pointing to the end of the resulting range of
  *          elements for which \p pred evaluated to \c true.
  *
@@ -650,7 +650,7 @@ __host__ __device__
  *  int A[N] = {1, 4, 2, 8, 5, 7};
  *  int S[N] = {0, 1, 1, 1, 0, 0};
  *
- *  int *new_end = thrust::remove(A, A + N, S, thrust::identity<int>());
+ *  int *new_end = thrust::remove_if(A, A + N, S, thrust::identity<int>());
  *  // The first three values of A are now {1, 5, 7}
  *  // Values beyond new_end are unspecified
  *  \endcode
