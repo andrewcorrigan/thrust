@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cstddef> // size_t
+
 #include <thrust/detail/type_traits.h>
 #include <thrust/detail/swap.h>
 

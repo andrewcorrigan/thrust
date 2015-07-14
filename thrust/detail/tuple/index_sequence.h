@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cstddef> // for size_t
+
 namespace thrust
 {
 
