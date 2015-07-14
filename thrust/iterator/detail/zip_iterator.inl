@@ -128,14 +128,29 @@ template<typename IteratorTuple>
   return get<0>(other.get_iterator_tuple()) - get<0>(get_iterator_tuple());
 } // end zip_iterator::distance_to()
 
+#ifdef THRUST_VARIADIC_TUPLE
+template<typename... Iterators>
+__host__ __device__
+  zip_iterator<thrust::tuple<Iterators...>> make_zip_iterator(thrust::tuple<Iterators...> t)
+{
+    return zip_iterator<thrust::tuple<Iterators...>>(t);
+} // end make_zip_iterator()
 
+
+template<typename... Iterators>
+__host__ __device__
+  zip_iterator<thrust::tuple<Iterators...>> make_zip_iterator(Iterators... its)
+{
+    return make_zip_iterator(thrust::make_tuple(its...));
+} // end make_zip_iterator()
+#else
 template<typename IteratorTuple>
 __host__ __device__
   zip_iterator<IteratorTuple> make_zip_iterator(IteratorTuple t)
 {
   return zip_iterator<IteratorTuple>(t);
 } // end make_zip_iterator()
-
+#endif
 
 } // end thrust
 
