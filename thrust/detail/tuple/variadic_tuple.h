@@ -91,10 +91,6 @@ struct tuple_element<i, __TUPLE_NAMESPACE::tuple<Type1,Types...>>
 };
 
 
-template<size_t i, class... Types>
-using tuple_element_t = typename tuple_element<i,Types...>::type;
-
-
 template<class> struct tuple_size;
 
 
@@ -179,9 +175,21 @@ template<class T, bool = __tuple_use_empty_base_class_optimization<T>::value>
 class __tuple_leaf_base
 {
   public:
+#if defined(__CUDACC__)
+#pragma nv_exec_check_disable
+#endif
+    __TUPLE_ANNOTATION
+    ~__tuple_leaf_base() = default;
+
+#if defined(__CUDACC__)
+#pragma nv_exec_check_disable
+#endif
     __TUPLE_ANNOTATION
     __tuple_leaf_base() = default;
 
+#if defined(__CUDACC__)
+#pragma nv_exec_check_disable
+#endif
     template<class U>
     __TUPLE_ANNOTATION
     __tuple_leaf_base(U&& arg) : val_(std::forward<U>(arg)) {}
@@ -816,6 +824,32 @@ struct __ignore_t
 constexpr __ignore_t ignore{};
 
 
+template<size_t I, class T, class... Types>
+struct __find_exactly_one_impl;
+
+
+template<size_t I, class T, class U, class... Types>
+struct __find_exactly_one_impl<I,T,U,Types...> : __find_exactly_one_impl<I+1, T, Types...> {};
+
+
+template<size_t I, class T, class... Types>
+struct __find_exactly_one_impl<I,T,T,Types...> : std::integral_constant<size_t, I>
+{
+  static_assert(__find_exactly_one_impl<I,T,Types...>::value == -1, "type can only occur once in type list");
+};
+
+
+template<size_t I, class T>
+struct __find_exactly_one_impl<I,T> : std::integral_constant<int, -1> {};
+
+
+template<class T, class... Types>
+struct __find_exactly_one : __find_exactly_one_impl<0,T,Types...>
+{
+  static_assert(__find_exactly_one::value != -1, "type not found in type list");
+};
+
+
 //} // end namespace
 
 
@@ -852,6 +886,30 @@ typename thrust::tuple_element<i, __TUPLE_NAMESPACE::tuple<UTypes...>>::type &&
   auto&& leaf = static_cast<__TUPLE_NAMESPACE::__tuple_leaf<i,type>&&>(t.base());
 
   return static_cast<type&&>(leaf.mutable_get());
+}
+
+
+template<class T, class... Types>
+__TUPLE_ANNOTATION
+T& get(__TUPLE_NAMESPACE::tuple<Types...>& t)
+{
+  return thrust::get<__TUPLE_NAMESPACE::__find_exactly_one<T,Types...>::value>(t);
+}
+
+
+template<class T, class... Types>
+__TUPLE_ANNOTATION
+const T& get(const __TUPLE_NAMESPACE::tuple<Types...>& t)
+{
+  return thrust::get<__TUPLE_NAMESPACE::__find_exactly_one<T,Types...>::value>(t);
+}
+
+
+template<class T, class... Types>
+__TUPLE_ANNOTATION
+T&& get(__TUPLE_NAMESPACE::tuple<Types...>&& t)
+{
+  return thrust::get<__TUPLE_NAMESPACE::__find_exactly_one<T,Types...>::value>(std::move(t));
 }
 
 
