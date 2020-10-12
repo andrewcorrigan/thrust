@@ -173,15 +173,6 @@ Fun tuple_for_each_helper(Fun f, T& t, Ts&... ts)
 }
 
 // for_each algorithm for tuples.
-#ifdef THRUST_VARIADIC_TUPLE
-#else
-template<typename Fun>
-inline __host__ __device__
-Fun tuple_for_each(thrust::null_type, Fun f)
-{
-  return f;
-} // end tuple_for_each()
-#endif
 
 template<typename Fun, typename... Ts, size_t... Is>
 inline __host__ __device__
@@ -273,7 +264,6 @@ namespace zip_iterator_base_ns
 {
 
 
-#ifdef THRUST_VARIADIC_TUPLE
 template<typename Tuple, typename IndexSequence>
   struct tuple_of_iterator_references_helper;
 
@@ -285,32 +275,6 @@ template<typename Tuple, size_t... Is>
     typename thrust::tuple_element<Is,Tuple>::type...
   > type;
 };
-#else
-template<int i, typename Tuple>
-  struct tuple_elements_helper
-    : eval_if<
-        (i < tuple_size<Tuple>::value),
-        tuple_element<i,Tuple>,
-        identity_<thrust::null_type>
-      >
-{};
-
-
-template<typename Tuple>
-  struct tuple_elements
-{
-  typedef typename tuple_elements_helper<0,Tuple>::type T0;
-  typedef typename tuple_elements_helper<1,Tuple>::type T1;
-  typedef typename tuple_elements_helper<2,Tuple>::type T2;
-  typedef typename tuple_elements_helper<3,Tuple>::type T3;
-  typedef typename tuple_elements_helper<4,Tuple>::type T4;
-  typedef typename tuple_elements_helper<5,Tuple>::type T5;
-  typedef typename tuple_elements_helper<6,Tuple>::type T6;
-  typedef typename tuple_elements_helper<7,Tuple>::type T7;
-  typedef typename tuple_elements_helper<8,Tuple>::type T8;
-  typedef typename tuple_elements_helper<9,Tuple>::type T9;
-};
-#endif
 
 
 template<typename IteratorTuple>
@@ -322,30 +286,11 @@ template<typename IteratorTuple>
     iterator_reference
   >::type tuple_of_references;
 
-#ifdef THRUST_VARIADIC_TUPLE
   // map thrust::tuple<T...> to tuple_of_iterator_references<T...>
   typedef typename tuple_of_iterator_references_helper<
     tuple_of_references,
     thrust::make_index_sequence<thrust::tuple_size<tuple_of_references>::value>
   >::type type;
-#else
-  // get at the individual tuple element types by name
-  typedef tuple_elements<tuple_of_references> elements;
-
-  // map thrust::tuple<T...> to tuple_of_iterator_references<T...>
-  typedef thrust::detail::tuple_of_iterator_references<
-    typename elements::T0,
-    typename elements::T1,
-    typename elements::T2,
-    typename elements::T3,
-    typename elements::T4,
-    typename elements::T5,
-    typename elements::T6,
-    typename elements::T7,
-    typename elements::T8,
-    typename elements::T9
-  > type;
-#endif
 };
 
 
