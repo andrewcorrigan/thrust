@@ -185,7 +185,7 @@ struct TestTupleGet
   void operator()(void)
   {
     using namespace thrust;
-    host_vector<T> data = random_integers<T>(10);
+    host_vector<T> data = random_integers<T>(11);
 
     tuple<T> t1(data[0]);
     ASSERT_EQUAL(data[0], thrust::get<0>(t1));
@@ -261,6 +261,19 @@ struct TestTupleGet
     ASSERT_EQUAL(data[7], thrust::get<7>(t10));
     ASSERT_EQUAL(data[8], thrust::get<8>(t10));
     ASSERT_EQUAL(data[9], thrust::get<9>(t10));
+
+    tuple<T,T,T,T,T,T,T,T,T,T,T> t11 = make_tuple(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10]);
+    ASSERT_EQUAL(data[0], thrust::get<0>(t11));
+    ASSERT_EQUAL(data[1], thrust::get<1>(t11));
+    ASSERT_EQUAL(data[2], thrust::get<2>(t11));
+    ASSERT_EQUAL(data[3], thrust::get<3>(t11));
+    ASSERT_EQUAL(data[4], thrust::get<4>(t11));
+    ASSERT_EQUAL(data[5], thrust::get<5>(t11));
+    ASSERT_EQUAL(data[6], thrust::get<6>(t11));
+    ASSERT_EQUAL(data[7], thrust::get<7>(t11));
+    ASSERT_EQUAL(data[8], thrust::get<8>(t11));
+    ASSERT_EQUAL(data[9], thrust::get<9>(t11));
+    ASSERT_EQUAL(data[10], thrust::get<10>(t11));
   }
 };
 SimpleUnitTest<TestTupleGet, BuiltinNumericTypes> TestTupleGetInstance;
