@@ -96,7 +96,6 @@ template <typename T>
 {
   void operator()(void)
   {
-#if 0
     using namespace thrust;
 
     // test host types
@@ -137,7 +136,6 @@ template <typename T>
     ASSERT_EQUAL_QUIET(ref2, test2);
     ASSERT_EQUAL( get<0>(ref2),  get<0>(test2));
     ASSERT_EQUAL( get<1>(ref2),  get<1>(test2));
-#endif
   } // end operator()()
 };
 SimpleUnitTest<TestZipIteratorReference, NumericTypes> TestZipIteratorReferenceInstance;
